@@ -170,6 +170,13 @@ class TestCodecTypeGuards:
         with pytest.raises(CanCodecError):
             codec.encode(0x100, [1, 2])
 
+    def test_encode_mixed_type_unknown_keys(self):
+        """int/str 混合未知键: sorted(unknown) 不得泄漏裸 TypeError。"""
+        codec = CanCodec()
+        codec.register(0x100, [SIG])
+        with pytest.raises(CanCodecError):
+            codec.encode(0x100, {1: 1, "B": 2})
+
     def test_encode_str_value(self):
         codec = CanCodec()
         codec.register(0x100, [SIG])

@@ -88,8 +88,10 @@ class CanCodec:
             raise UnknownFrameError(f"未注册仲裁 ID 0x{arbitration_id:X} 的信号")
         unknown = set(values) - {sig.name for sig in signals}
         if unknown:
+            # 2026-08-21 B run4: sorted() 对 int/str 混合键抛裸 TypeError →
+            # key=str 归一, 保证 FR-011 只抛领域异常
             raise CanCodecError(
-                f"编码值含未注册信号 {sorted(unknown)} (ID 0x{arbitration_id:X})"
+                f"编码值含未注册信号 {sorted(unknown, key=str)} (ID 0x{arbitration_id:X})"
             )
         needed_bytes = 0
         for sig in signals:
