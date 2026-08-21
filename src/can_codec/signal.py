@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -72,12 +73,20 @@ class CanSignal:
             raise InvalidSignalError(f"byte_order 必须为 'little'/'big', got {self.byte_order!r}")
         if not isinstance(self.scale, (int, float)) or isinstance(self.scale, bool) or self.scale <= 0:
             raise InvalidSignalError(f"scale {self.scale!r} 必须为正数")
+        if isinstance(self.scale, float) and math.isnan(self.scale):
+            raise InvalidSignalError(f"scale 不能为 NaN")
         if not isinstance(self.offset, (int, float)) or isinstance(self.offset, bool):
             raise InvalidSignalError(f"offset 必须为数值, got {type(self.offset).__name__}")
+        if isinstance(self.offset, float) and math.isnan(self.offset):
+            raise InvalidSignalError(f"offset 不能为 NaN")
         if not isinstance(self.min_value, (int, float)) or isinstance(self.min_value, bool):
             raise InvalidSignalError(f"min_value 必须为数值, got {type(self.min_value).__name__}")
         if not isinstance(self.max_value, (int, float)) or isinstance(self.max_value, bool):
             raise InvalidSignalError(f"max_value 必须为数值, got {type(self.max_value).__name__}")
+        if isinstance(self.min_value, float) and math.isnan(self.min_value):
+            raise InvalidSignalError(f"min_value 不能为 NaN")
+        if isinstance(self.max_value, float) and math.isnan(self.max_value):
+            raise InvalidSignalError(f"max_value 不能为 NaN")
         if self.min_value > self.max_value:
             raise InvalidSignalError(
                 f"min_value {self.min_value} 大于 max_value {self.max_value}"
@@ -226,7 +235,13 @@ def raw_to_physical(raw: int, signal: CanSignal) -> float:
         raise SignalValueError(f"raw 必须为数值, got {type(raw).__name__}")
     if not isinstance(signal, CanSignal):
         raise SignalValueError(f"signal 必须为 CanSignal, got {type(signal).__name__}")
+    if isinstance(raw, float) and not math.isfinite(raw):
+        raise SignalValueError(f"raw 必须为有限数值, got {raw!r}")
     physical = raw * signal.scale + signal.offset
+    if isinstance(physical, float) and not math.isfinite(physical):
+        raise SignalValueError(
+            f"信号 {signal.name}: 物理值 {physical!r} 非有限数值"
+        )
     if physical < signal.min_value or physical > signal.max_value:
         raise SignalValueError(
             f"信号 {signal.name}: 物理值 {physical} 超出 {signal.min_value}..{signal.max_value}"
@@ -245,6 +260,8 @@ def physical_to_raw(physical: float, signal: CanSignal) -> int:
         raise SignalValueError(f"physical 必须为数值, got {type(physical).__name__}")
     if not isinstance(signal, CanSignal):
         raise SignalValueError(f"signal 必须为 CanSignal, got {type(signal).__name__}")
+    if isinstance(physical, float) and not math.isfinite(physical):
+        raise SignalValueError(f"physical 必须为有限数值, got {physical!r}")
     if physical < signal.min_value or physical > signal.max_value:
         raise SignalValueError(
             f"信号 {signal.name}: 物理值 {physical} 超出 {signal.min_value}..{signal.max_value}"

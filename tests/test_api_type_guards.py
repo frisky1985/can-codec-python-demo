@@ -107,6 +107,40 @@ class TestSignalTypeGuards:
             raw_to_physical(1, "S")
 
 
+class TestNaNGuard:
+    """FR-008/FR-011: NaN/inf 必须被领域异常拒绝, 不泄漏裸 ValueError。"""
+
+    def test_scale_nan_rejected(self):
+        with pytest.raises(InvalidSignalError):
+            CanSignal("S", 0, 8, scale=float("nan"))
+
+    def test_offset_nan_rejected(self):
+        with pytest.raises(InvalidSignalError):
+            CanSignal("S", 0, 8, offset=float("nan"))
+
+    def test_min_value_nan_rejected(self):
+        with pytest.raises(InvalidSignalError):
+            CanSignal("S", 0, 8, min_value=float("nan"))
+
+    def test_physical_to_raw_nan(self):
+        with pytest.raises(SignalValueError):
+            physical_to_raw(float("nan"), SIG)
+
+    def test_physical_to_raw_inf(self):
+        with pytest.raises(SignalValueError):
+            physical_to_raw(float("inf"), SIG)
+
+    def test_raw_to_physical_nan(self):
+        with pytest.raises(SignalValueError):
+            raw_to_physical(float("nan"), SIG)
+
+    def test_codec_encode_nan_value(self):
+        codec = CanCodec()
+        codec.register(0x100, [SIG])
+        with pytest.raises(SignalValueError):
+            codec.encode(0x100, {"S": float("nan")})
+
+
 class TestCodecTypeGuards:
     def test_register_str_id(self):
         codec = CanCodec()
