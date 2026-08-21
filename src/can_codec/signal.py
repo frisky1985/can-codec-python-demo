@@ -58,16 +58,26 @@ class CanSignal:
     max_value: float = float("inf")
 
     def __post_init__(self) -> None:
-        if not self.name:
-            raise InvalidSignalError("信号名不能为空")
+        if not isinstance(self.name, str) or not self.name:
+            raise InvalidSignalError(f"信号名必须为非空 str, got {type(self.name).__name__}")
+        if not isinstance(self.start_bit, int) or isinstance(self.start_bit, bool):
+            raise InvalidSignalError(f"start_bit 必须为 int, got {type(self.start_bit).__name__}")
+        if not isinstance(self.length, int) or isinstance(self.length, bool):
+            raise InvalidSignalError(f"length 必须为 int, got {type(self.length).__name__}")
         if self.start_bit < 0:
             raise InvalidSignalError(f"start_bit {self.start_bit} 不能为负")
         if not (1 <= self.length <= 64):
             raise InvalidSignalError(f"length {self.length} 超出 1..64")
         if self.byte_order not in (_LITTLE, _BIG):
             raise InvalidSignalError(f"byte_order 必须为 'little'/'big', got {self.byte_order!r}")
-        if self.scale <= 0:
-            raise InvalidSignalError(f"scale {self.scale} 必须为正")
+        if not isinstance(self.scale, (int, float)) or isinstance(self.scale, bool) or self.scale <= 0:
+            raise InvalidSignalError(f"scale {self.scale!r} 必须为正数")
+        if not isinstance(self.offset, (int, float)) or isinstance(self.offset, bool):
+            raise InvalidSignalError(f"offset 必须为数值, got {type(self.offset).__name__}")
+        if not isinstance(self.min_value, (int, float)) or isinstance(self.min_value, bool):
+            raise InvalidSignalError(f"min_value 必须为数值, got {type(self.min_value).__name__}")
+        if not isinstance(self.max_value, (int, float)) or isinstance(self.max_value, bool):
+            raise InvalidSignalError(f"max_value 必须为数值, got {type(self.max_value).__name__}")
         if self.min_value > self.max_value:
             raise InvalidSignalError(
                 f"min_value {self.min_value} 大于 max_value {self.max_value}"
@@ -156,8 +166,12 @@ def extract_signal(data: bytes, signal: CanSignal) -> int:
     """从帧数据提取信号原始值 (raw)。
 
     Raises:
-        SignalExtractError: 位偏移超出帧数据可表示范围。
+        SignalExtractError: 位偏移超出帧数据可表示范围 / 输入类型非法。
     """
+    if not isinstance(data, (bytes, bytearray)):
+        raise SignalExtractError(f"data 必须为 bytes, got {type(data).__name__}")
+    if not isinstance(signal, CanSignal):
+        raise SignalExtractError(f"signal 必须为 CanSignal, got {type(signal).__name__}")
     if signal.byte_order == _LITTLE:
         buf_bits = len(data) * 8
         if signal.start_bit + signal.length > buf_bits:
@@ -177,8 +191,14 @@ def insert_signal(data: bytearray, signal: CanSignal, raw_value: int) -> None:
     """将信号原始值写入帧数据 (原地修改)。
 
     Raises:
-        SignalEncodeError: 位越界或原始值超出信号值域。
+        SignalEncodeError: 位越界 / 原始值超出信号值域 / 输入类型非法。
     """
+    if not isinstance(data, bytearray):
+        raise SignalEncodeError(f"data 必须为 bytearray, got {type(data).__name__}")
+    if not isinstance(signal, CanSignal):
+        raise SignalEncodeError(f"signal 必须为 CanSignal, got {type(signal).__name__}")
+    if not isinstance(raw_value, int) or isinstance(raw_value, bool):
+        raise SignalEncodeError(f"raw_value 必须为 int, got {type(raw_value).__name__}")
     if raw_value < signal.raw_min or raw_value > signal.raw_max:
         raise SignalEncodeError(
             f"信号 {signal.name}: 原始值 {raw_value} 超出 {signal.raw_min}..{signal.raw_max}"
@@ -197,7 +217,15 @@ def insert_signal(data: bytearray, signal: CanSignal, raw_value: int) -> None:
 
 
 def raw_to_physical(raw: int, signal: CanSignal) -> float:
-    """原始值 → 物理值: physical = raw * scale + offset。"""
+    """原始值 → 物理值: physical = raw * scale + offset。
+
+    Raises:
+        SignalValueError: 物理值超出信号值域 / 输入类型非法。
+    """
+    if not isinstance(raw, (int, float)) or isinstance(raw, bool):
+        raise SignalValueError(f"raw 必须为数值, got {type(raw).__name__}")
+    if not isinstance(signal, CanSignal):
+        raise SignalValueError(f"signal 必须为 CanSignal, got {type(signal).__name__}")
     physical = raw * signal.scale + signal.offset
     if physical < signal.min_value or physical > signal.max_value:
         raise SignalValueError(
@@ -210,8 +238,13 @@ def physical_to_raw(physical: float, signal: CanSignal) -> int:
     """物理值 → 原始值: raw = round((physical - offset) / scale)。
 
     Raises:
-        SignalValueError: 物理值超出信号物理值域, 或换算后原始值超出信号原始值域。
+        SignalValueError: 物理值超出信号物理值域, 或换算后原始值超出信号原始值域,
+        或输入类型非法。
     """
+    if not isinstance(physical, (int, float)) or isinstance(physical, bool):
+        raise SignalValueError(f"physical 必须为数值, got {type(physical).__name__}")
+    if not isinstance(signal, CanSignal):
+        raise SignalValueError(f"signal 必须为 CanSignal, got {type(signal).__name__}")
     if physical < signal.min_value or physical > signal.max_value:
         raise SignalValueError(
             f"信号 {signal.name}: 物理值 {physical} 超出 {signal.min_value}..{signal.max_value}"

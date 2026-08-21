@@ -67,18 +67,20 @@ def _validate_id(arbitration_id: int, extended: bool) -> None:
 
 
 def _validate_data(data: bytes) -> None:
-    if len(data) > _DLC_MAX:
-        raise FrameEncodeError(f"数据长度 {len(data)} 超过 CAN 上限 {_DLC_MAX} 字节")
     if not isinstance(data, bytes):
         raise FrameEncodeError(f"data 必须为 bytes, got {type(data).__name__}")
+    if len(data) > _DLC_MAX:
+        raise FrameEncodeError(f"数据长度 {len(data)} 超过 CAN 上限 {_DLC_MAX} 字节")
 
 
 def encode_frame(frame: CanFrame) -> bytes:
     """将 CanFrame 编码为线格式字节流。
 
     Raises:
-        FrameEncodeError: 帧字段非法 (ID 超范围/数据超长)。
+        FrameEncodeError: 帧字段非法 (ID 超范围/数据超长/类型错误)。
     """
+    if not isinstance(frame, CanFrame):
+        raise FrameEncodeError(f"frame 必须为 CanFrame, got {type(frame).__name__}")
     header = frame.arbitration_id | (_EXTENDED_FLAG if frame.extended else 0)
     return pack(">I", header) + pack(">B", frame.dlc) + bytes(frame.data)
 
@@ -87,8 +89,11 @@ def decode_frame(raw: bytes) -> CanFrame:
     """从线格式字节流解析 CanFrame。
 
     Raises:
-        FrameDecodeError: 字节流过短/头非法/DLC 与实际数据不匹配。
+        FrameDecodeError: 输入非 bytes/字节流过短/头非法/DLC 与实际数据不匹配。
     """
+    if not isinstance(raw, (bytes, bytearray)):
+        raise FrameDecodeError(f"输入必须为 bytes, got {type(raw).__name__}")
+    raw = bytes(raw)
     if len(raw) < _HEADER_LEN + _DLC_LEN:
         raise FrameDecodeError(
             f"帧字节流过短: {len(raw)} 字节 (最小 {_HEADER_LEN + _DLC_LEN})"

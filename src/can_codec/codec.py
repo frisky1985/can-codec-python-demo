@@ -38,11 +38,22 @@ class CanCodec:
     extended: bool = False
 
     def register(self, arbitration_id: int, signals: list[CanSignal]) -> None:
-        """注册一个帧 ID 的信号列表 (覆盖同名 ID 的旧注册)。"""
+        """注册一个帧 ID 的信号列表 (覆盖同名 ID 的旧注册)。
+
+        Raises:
+            CanCodecError: 仲裁 ID 非 int/为负, 或信号列表为空/非 CanSignal。
+        """
+        if not isinstance(arbitration_id, int) or isinstance(arbitration_id, bool):
+            raise CanCodecError(f"仲裁 ID 必须为 int, got {type(arbitration_id).__name__}")
         if arbitration_id < 0:
             raise CanCodecError(f"仲裁 ID {arbitration_id} 不能为负")
         if not signals:
             raise CanCodecError(f"仲裁 ID {arbitration_id} 的信号列表不能为空")
+        for sig in signals:
+            if not isinstance(sig, CanSignal):
+                raise CanCodecError(
+                    f"信号必须为 CanSignal, got {type(sig).__name__}"
+                )
         self.frame_signals[arbitration_id] = list(signals)
 
     def decode(self, frame: CanFrame) -> dict[str, float]:
@@ -50,8 +61,11 @@ class CanCodec:
 
         Raises:
             UnknownFrameError: 帧仲裁 ID 未注册。
+            CanCodecError: frame 非 CanFrame。
             SignalExtractError: 信号位越界 (帧数据过短)。
         """
+        if not isinstance(frame, CanFrame):
+            raise CanCodecError(f"frame 必须为 CanFrame, got {type(frame).__name__}")
         signals = self.frame_signals.get(frame.arbitration_id)
         if signals is None:
             raise UnknownFrameError(f"未注册仲裁 ID 0x{frame.arbitration_id:X} 的信号")
@@ -62,8 +76,13 @@ class CanCodec:
 
         Raises:
             UnknownFrameError: 仲裁 ID 未注册。
+            CanCodecError: 参数类型非法 / 含未注册信号名。
             SignalValueError / SignalEncodeError: 值越界或位域越界。
         """
+        if not isinstance(arbitration_id, int) or isinstance(arbitration_id, bool):
+            raise CanCodecError(f"仲裁 ID 必须为 int, got {type(arbitration_id).__name__}")
+        if not isinstance(values, dict):
+            raise CanCodecError(f"values 必须为 dict, got {type(values).__name__}")
         signals = self.frame_signals.get(arbitration_id)
         if signals is None:
             raise UnknownFrameError(f"未注册仲裁 ID 0x{arbitration_id:X} 的信号")
