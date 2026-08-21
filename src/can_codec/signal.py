@@ -1,11 +1,13 @@
 """can_codec.signal — CAN 信号位级提取/插入与物理值换算。
 
-位序契约 (spec FR-005..FR-007):
+位序契约 (spec FR-005..FR-008):
     - Intel (little-endian): start_bit 为信号 LSB 在帧数据中的位索引
       (从 byte0 bit0=0 开始递增, 低字节在前)。跨字节时低位字节在前。
-    - Motorola (big-endian, Vector MSB 编号): start_bit 为信号 MSB 的
-      MSB 编号。MSB 编号规则: byte0 bit7=7, byte0 bit0=0; byte1 bit7=15,
-      byte1 bit0=8; byte2 bit7=23 ... 信号从 MSB 位置向下连续取 length 位。
+    - Motorola (big-endian, CANdb++ MSB 编号): start_bit 为信号 MSB 的
+      编号。编号规则: bit n 的物理位置 = byte n//8, bit n%8
+      (byte0 bit7=7, byte0 bit0=0; byte1 bit7=15, byte1 bit0=8; ...)。
+      信号从 MSB 编号向低方向取位; 同字节内 bit 递减; 跨字节时跳到
+      下一个更高字节的 bit7 (MSB 所在字节为最高有效字节)。
 
 物理换算 (spec FR-008):
     physical = raw * scale + offset

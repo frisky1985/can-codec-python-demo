@@ -102,6 +102,25 @@ class TestEncode:
         assert frame.extended is True
         assert codec.decode(frame) == {"A": 42.0}
 
+    def test_encode_motorola_msb_byte1_needs_three_bytes(self):
+        """start_bit=15/len=16: 覆盖 byte1+byte2, 数组长度 3 (byte0 空闲) — 锁定 needed_bytes 公式。"""
+        codec = CanCodec()
+        codec.register(0x300, [CanSignal("W", 15, 16, byte_order="big")])
+        frame = codec.encode(0x300, {"W": 0x1234})
+        assert len(frame.data) == 3
+        assert frame.data[1:] == b"\x12\x34"
+        decoded = codec.decode(frame)
+        assert decoded["W"] == 0x1234
+
+    def test_encode_motorola_mid_byte_start_needs_two_bytes(self):
+        """start_bit=11/len=8: 覆盖 byte1 低4位 + byte2 高4位, 数组长度 3。"""
+        codec = CanCodec()
+        codec.register(0x301, [CanSignal("X", 11, 8, byte_order="big")])
+        frame = codec.encode(0x301, {"X": 0xA0})
+        assert len(frame.data) == 3
+        decoded = codec.decode(frame)
+        assert decoded["X"] == 0xA0
+
 
 class TestEndToEnd:
     def test_vehicle_dashboard_pdu_roundtrip(self):

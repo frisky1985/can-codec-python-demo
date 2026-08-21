@@ -41,7 +41,8 @@
 
 ### FR-004: 帧线格式编解码
 - The system SHALL encode a `CanFrame` to a documented byte format: 4-byte big-endian header (bit31 = extended flag, bits30..0 = arbitration_id) + 1-byte DLC + payload
-- The system SHALL make `encode_frame(frame)` return bytes and `decode_frame(raw)` return the identical `CanFrame` (round-trip)
+- The system SHALL make `encode_frame(frame)` return bytes and `decode_frame(raw)` return the identical `CanFrame` for ID/data/extended (round-trip)
+- The system SHALL treat `timestamp_us` as non-serialized metadata: the wire format SHALL NOT contain it, and `decode_frame` SHALL return `timestamp_us = 0` (AC-001/002 scope: ID/data/extended preservation only)
 - The system SHALL raise `FrameDecodeError` from `decode_frame` on: raw shorter than 5 bytes, DLC > 8, payload length ≠ DLC, or ID out of range
 
 ### FR-005: Intel 信号提取
@@ -65,6 +66,8 @@
 - The system SHALL provide `physical_to_raw(physical, signal)` = round((physical − offset) / scale)
 - The system SHALL raise `SignalValueError` from both when the result is outside the signal's declared domain (`min_value`/`max_value` for physical, raw_min/raw_max for raw)
 - The system SHALL require positive `scale`; non-positive scale or min_value > max_value SHALL raise `InvalidSignalError` at signal construction
+- The system SHALL fix the `CanSignal` public API field names as: `name`, `start_bit`, `length`, `byte_order` ∈ {'little', 'big'} (Intel/Motorola; 不接受 'intel'/'motorola' 别名), `is_signed`, `scale`, `offset`, `min_value`, `max_value` — with `raw_min`/`raw_max` as derived properties from `length`/`is_signed` (not constructor fields)
+- The system SHALL reject unknown `byte_order` values at construction with `InvalidSignalError` (FR-008 field contract; codegen must not invent alternative API names)
 
 ### FR-009: 高层编解码器
 - The system SHALL provide a `CanCodec` class mapping arbitration IDs to signal lists

@@ -135,6 +135,37 @@ class TestMotorolaExtract:
         with pytest.raises(SignalExtractError):
             extract_signal(b"\x01", sig)  # 1 字节只有 8 位
 
+    def test_motorola_mid_byte_cross_multi_byte(self):
+        # msb_pos=19 (byte2 bit3), length=12 → byte2 bit3..0 + byte3 全部
+        sig = CanSignal("Deep", 19, 12, byte_order="big")
+        data = b"\x00\x00\x0A\xBC"
+        # byte2=0x0A bit3..0 = 1010; byte3=0xBC = 1011 1100 → 1010 1011 1100
+        assert extract_signal(data, sig) == 0xABC
+
+    def test_motorola_insert_extract_roundtrip_varied(self):
+        """跨字节 Motorola round-trip 矩阵 (mid-byte 起始 / 多字节延伸)。"""
+        cases = [
+            (7, 8),    # byte0 整字节
+            (15, 8),   # byte1 整字节
+            (7, 16),   # byte0+byte1 (MSB 在 byte0)
+            (15, 16),  # byte1+byte2 (MSB 在 byte1)
+            (11, 8),   # byte1 bit3 起始, 跨 byte2
+            (19, 12),  # byte2 bit3 起始, 跨 byte3
+            (3, 6),    # 单字节内中段
+        ]
+        for msb_pos, length in cases:
+            sig = CanSignal(f"S{msb_pos}_{length}", msb_pos, length, byte_order="big")
+            data = bytearray(4)
+            value = 0b101010101010  # 12 位以内固定值 (含跨字节)
+            # 只测 length 位能容纳的值域内随机值
+            import random
+            rng = random.Random(msb_pos * 100 + length)
+            value = rng.randint(0, (1 << length) - 1)
+            insert_signal(data, sig, value)
+            assert extract_signal(bytes(data), sig) == value, (
+                f"round-trip failed msb={msb_pos} len={length}"
+            )
+
 
 class TestInsert:
     def test_insert_low_nibble(self):
