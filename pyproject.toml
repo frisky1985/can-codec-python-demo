@@ -1,0 +1,23 @@
+# CAN 报文编解码库 — 项目配置
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "can-codec"
+version = "0.1.0"
+description = "CAN 2.0 报文编解码库: 帧解析/构造 + 信号位级提取与物理换算 (Intel/Motorola 字节序)"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"
